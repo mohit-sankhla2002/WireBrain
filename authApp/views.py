@@ -24,6 +24,16 @@ class UserRegistration(APIView):
             token = get_tokens_for_user(user=user)
             return Response({"token": token,"msg": "Registration Successful..."}, status=status.HTTP_201_CREATED)
         
+class AdminRegistration(APIView):
+    renderer_classes = [renderers.UserRenderers]
+    def post(self, request, format=None):
+        print(request.data)
+        serializer = serializers.AdminRegistrationSerializer(data=request.data)
+        if serializer.is_valid(raise_exception=True):
+            user = serializer.save()
+            token = get_tokens_for_user(user=user)
+            return Response({"token": token,"msg": "Admin Registration Successful..."}, status=status.HTTP_201_CREATED)
+        
 class UserLogin(APIView):
     renderer_classes = [renderers.UserRenderers]
     def post(self, request, format=None):

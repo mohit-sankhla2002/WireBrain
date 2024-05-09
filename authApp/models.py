@@ -1,6 +1,13 @@
 from django.db import models
 from django.contrib.auth.models import BaseUserManager, AbstractBaseUser
 
+class Team(models.Model):
+    team_name = models.CharField(max_length=100, null=False)
+    team_type = models.CharField(max_length=100, null=False)
+
+    def __str__(self):
+        return self.team_name
+
 class MyUserManager(BaseUserManager):
     def create_user(self, email, first_name, last_name, phone, username, password=None, password2=None):
         if not email:
@@ -22,7 +29,7 @@ class MyUserManager(BaseUserManager):
         user.save(using=self._db)
         return user
 
-    def create_superuser(self, email, first_name, last_name, phone, username, password=None):
+    def create_superuser(self, email, first_name, last_name, phone, username, team_name, team_type,password=None, password2=None):
         user = self.create_user(
             email,
             password=password,
@@ -32,6 +39,8 @@ class MyUserManager(BaseUserManager):
             phone=phone
         )
         user.is_admin = True
+        team = Team.objects.create(team_name=team_name, team_type=team_type)
+        user.team = team
         user.save(using=self._db)
         return user
 
@@ -47,6 +56,7 @@ class User(AbstractBaseUser):
     username = models.CharField(max_length=20, unique=True)
     is_active = models.BooleanField(default=True)
     is_admin = models.BooleanField(default=False)
+    team = models.ForeignKey(Team, related_name='team', on_delete=models.CASCADE, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now= True)
 

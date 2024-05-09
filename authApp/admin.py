@@ -7,7 +7,7 @@ class UserAdmin(BaseUserAdmin):
     list_filter = ["is_admin"]
     fieldsets = [
         ("User Credentials", {"fields": ["email", "username", "password"]}),
-        ("Personal info", {"fields": ["first_name", "last_name", "phone"]}),
+        ("Personal info", {"fields": ["first_name", "last_name", "phone", "team"]}),
         ("Permissions", {"fields": ["is_admin"]}),
     ]
     add_fieldsets = [
@@ -23,6 +23,9 @@ class UserAdmin(BaseUserAdmin):
     ordering = ["updated_at","email", "id"]
     filter_horizontal = []
 
+class TeamAdmin(admin.ModelAdmin):
+    list_display = ['id', 'team_name', 'team_type']
 
 # Now register the new UserAdmin...
 admin.site.register(models.User, UserAdmin)
+admin.site.register(models.Team, TeamAdmin)
