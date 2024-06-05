@@ -11,7 +11,10 @@ DEBUG = True
 ALLOWED_HOSTS = []
 
 INSTALLED_APPS = [
+    "daphne",
     'authApp',
+    'createTeam',
+    'chatApp',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -65,6 +68,7 @@ TEMPLATES = [
     },
 ]
 
+ASGI_APPLICATION = 'marketing.asgi.application'
 WSGI_APPLICATION = 'marketing.wsgi.application'
 
 DATABASES = {
@@ -107,6 +111,15 @@ SIMPLE_JWT = {
     "ROTATE_REFRESH_TOKENS": False,
     "BLACKLIST_AFTER_ROTATION": False,
     "UPDATE_LAST_LOGIN": False,
+}
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("127.0.0.1", 6379)],
+        },
+    },
 }
 
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
