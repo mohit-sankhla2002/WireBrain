@@ -1,5 +1,6 @@
 from rest_framework.response import Response
 from rest_framework import status
+from . import models
 from django.contrib.auth import authenticate
 from . import serializers
 from . import renderers
@@ -21,9 +22,47 @@ class UserRegistration(APIView):
         serializer = serializers.UserRegistrationSerializer(data=request.data)
         if serializer.is_valid(raise_exception=True):
             user = serializer.save()
-            token = get_tokens_for_user(user=user)
-            return Response({"token": token,"msg": "Registration Successful..."}, status=status.HTTP_201_CREATED)
-        
+            # token = get_tokens_for_user(user=user)
+            return Response({"msg": "Registration Successful..."}, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+class VerifyOTP(APIView):
+    renderer_classes = [renderers.UserRenderers]
+
+    def post(self, request, format=None):
+        serializer = serializers.VerifyOTPSerializer(data=request.data)
+        if serializer.is_valid():
+            email = serializer.validated_data['email']
+            otp = serializer.validated_data['otp']
+            try:
+                user = models.User.objects.get(email=email)
+                if user.otp == otp:
+                    user.is_verified = True
+                    user.otp = None
+                    user.save()
+                    token = get_tokens_for_user(user)
+                    return Response({'token': token, 'msg': 'OTP verified successfully.'}, status=status.HTTP_200_OK)
+                else:
+                    return Response({'errors': 'Invalid OTP.'}, status=status.HTTP_400_BAD_REQUEST)
+            except models.User.DoesNotExist:
+                return Response({'errors': 'User does not exist.'}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+class VerifyEmail(APIView):
+    renderer_classes = [renderers.UserRenderers]
+
+    def post(self, request, format=None):
+        print(request.data)
+        serializer = serializers.VerifyEmailSerializer(data=request.data)
+        if serializer.is_valid():
+            email = serializer.validated_data['email']
+            try:
+                user = models.User.objects.get(email=email)
+                return Response({'msg': "user found in database"}, status=status.HTTP_200_OK)
+            except models.User.DoesNotExist:
+                return Response({'errors': 'User does not exist.'}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 class AdminRegistration(APIView):
     renderer_classes = [renderers.UserRenderers]
     def post(self, request, format=None):

@@ -1,4 +1,5 @@
 from django.core.mail import EmailMessage
+import random
 import os
 
 class Util:
@@ -11,3 +12,6 @@ class Util:
             to=[data['to_email']]
         )
         email.send()
+
+def generate_otp():
+    return str(random.randint(100000, 999999))

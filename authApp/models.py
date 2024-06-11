@@ -1,4 +1,5 @@
 from django.db import models
+from uuid import uuid4
 from django.contrib.auth.models import BaseUserManager, AbstractBaseUser
 
 class Team(models.Model):
@@ -29,7 +30,7 @@ class MyUserManager(BaseUserManager):
         user.save(using=self._db)
         return user
 
-    def create_superuser(self, email, first_name, last_name, phone, username, team_name, team_type,password=None, password2=None):
+    def create_superuser(self, email, first_name, last_name, phone, username,password=None, password2=None):
         user = self.create_user(
             email,
             password=password,
@@ -39,12 +40,13 @@ class MyUserManager(BaseUserManager):
             phone=phone
         )
         user.is_admin = True
-        team = Team.objects.create(team_name=team_name, team_type=team_type)
-        user.team = team
+        # team = Team.objects.create(team_name=team_name, team_type=team_type)
+        # user.team = team
         user.save(using=self._db)
         return user
 
 class User(AbstractBaseUser):
+    id = models.UUIDField(primary_key=True, default=uuid4)
     email = models.EmailField(
         verbose_name="Email",
         max_length=255,
@@ -54,6 +56,8 @@ class User(AbstractBaseUser):
     last_name = models.CharField(max_length=50)
     phone = models.CharField(max_length=10, unique=True)
     username = models.CharField(max_length=20, unique=True)
+    otp = models.CharField(max_length=6, blank=True, null=True)
+    is_verified = models.BooleanField(default=False)  # Add this field
     is_active = models.BooleanField(default=True)
     is_admin = models.BooleanField(default=False)
     team = models.ForeignKey(Team, related_name='team', on_delete=models.CASCADE, null=True)

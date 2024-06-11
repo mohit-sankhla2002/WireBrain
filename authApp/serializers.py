@@ -21,8 +21,29 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Password and Confirm Password not matches...")
         return attrs
     
-    def create(self, validate_data):
-        return models.User.objects.create_user(**validate_data)
+    def create(self, validated_data):
+        otp = utils.generate_otp()
+        user = models.User.objects.create_user(**validated_data)
+        user.otp = otp
+        user.is_verified = False
+        user.save()
+        
+        data = {
+            'subject': 'Your OTP Code',
+            'body': f'Your OTP code is {otp}',
+            'to_email': user.email
+        }
+        utils.Util.send_mail(data)
+
+        return user
+    
+class VerifyOTPSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    otp = serializers.CharField(max_length=6)
+
+class VerifyEmailSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
     
 class AdminRegistrationSerializer(serializers.ModelSerializer):
     password2 = serializers.CharField(style={'input_type':'password'}, write_only=True)
@@ -82,7 +103,7 @@ class PasswordResentLink(serializers.Serializer):
         email = attrs.get('email')
         if models.User.objects.filter(email=email).exists():
             user = models.User.objects.get(email=email)
-            uid = urlsafe_base64_encode(force_bytes(user.id))
+            uid = str(user.id)
             token = PasswordResetTokenGenerator().make_token(user)
             link = "http://localhost:3000/reset/"+uid+"/"+token
             print(link)

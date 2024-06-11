@@ -15,6 +15,7 @@ INSTALLED_APPS = [
     'authApp',
     'createTeam',
     'chatApp',
+    'whatsappChat',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
