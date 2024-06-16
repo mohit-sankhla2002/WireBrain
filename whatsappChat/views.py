@@ -15,6 +15,17 @@ class indPhone(APIView):
             return Response(serializer.data, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
+
+class csvPhone(APIView):
+    renderer_classes = [renderers.MessageRenderers]
+    def post(self, request, format=None):
+        serializer = serializers.excelSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save();
+            return Response({'msg': "Data Saved"}, status=status.HTTP_202_ACCEPTED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    
 class sendMsg(APIView):
     def post(self, request):
         mobile_number = request.data['phone']
