@@ -4,7 +4,7 @@ from createTeam import models as modelTeam
 from django.contrib.auth.models import BaseUserManager, AbstractBaseUser
 
 class MyUserManager(BaseUserManager):
-    def create_user(self, email, first_name, last_name, phone, username, password=None, password2=None):
+    def create_user(self, email, profile_photo, first_name, last_name, phone, username, password=None, password2=None):
         if not email:
             raise ValueError("User must have an email address")
         elif not phone:
@@ -14,6 +14,7 @@ class MyUserManager(BaseUserManager):
 
         user = self.model(
             email=self.normalize_email(email),
+            profile_photo=profile_photo,
             first_name = first_name,
             last_name = last_name,
             phone = phone,
@@ -46,6 +47,7 @@ class User(AbstractBaseUser):
         max_length=255,
         unique=True,
     )
+    profile_photo = models.ImageField(upload_to='profile_photos/', null=True, blank=True, default='profile_photos/avatar.svg')
     first_name = models.CharField(max_length=50)
     last_name = models.CharField(max_length=50)
     phone = models.CharField(max_length=10, unique=True)
