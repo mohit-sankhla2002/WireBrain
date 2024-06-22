@@ -1,8 +1,27 @@
 from rest_framework import serializers
 from authApp import models as authAppmodel
+from . import models
 from django.utils.encoding import smart_str, force_bytes, DjangoUnicodeDecodeError
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.contrib.auth.tokens import PasswordResetTokenGenerator
+
+class TeamRegistrationSerialzer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Team
+        fields = ['team_name', 'team_type']
+
+    def validate_team_type(self, value):
+        valid_types = ['Tier-1', 'Tier-2', 'Tier-3']  # Example valid types
+        if value not in valid_types:
+            raise serializers.ValidationError(f"{value} is not a valid team type.")
+        return value
+    
+    def create(self, validate_data):
+        team = models.Team.objects.create(**validate_data, )
+        user = self.context.get('user')
+        user.team = team
+        user.save()
+        return team
 
 class AddMemberSerializer(serializers.Serializer):
     email = serializers.EmailField(max_length=255)

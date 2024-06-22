@@ -7,6 +7,16 @@ from rest_framework.permissions import IsAuthenticated
 from authApp import models
 import json
 
+class TeamCreation(APIView):
+    renderer_classes = [renderers.UserRenderers]
+    permission_classes = [IsAuthenticated]
+    def post(self, request, format=None):
+        print(request.data)
+        serializer = serializers.TeamRegistrationSerialzer(data=request.data, context={'user':request.user})
+        if serializer.is_valid(raise_exception=True):
+            serializer.save()
+            return Response({"msg": "Team Created Successfully..."}, status=status.HTTP_201_CREATED)
+
 class AddMembers(APIView):
     renderer_classes = [renderers.UserRenderers]
     permission_classes = [IsAuthenticated]

@@ -23,9 +23,4 @@ class UserAdmin(BaseUserAdmin):
     ordering = ["updated_at","email", "id"]
     filter_horizontal = []
 
-class TeamAdmin(admin.ModelAdmin):
-    list_display = ['id', 'team_name', 'team_type']
-
-# Now register the new UserAdmin...
 admin.site.register(models.User, UserAdmin)
-admin.site.register(models.Team, TeamAdmin)
