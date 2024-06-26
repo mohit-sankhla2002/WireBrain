@@ -52,6 +52,7 @@ class User(AbstractBaseUser):
     last_name = models.CharField(max_length=50)
     phone = models.CharField(max_length=10, unique=True)
     username = models.CharField(max_length=20, unique=True)
+    phone_id = models.CharField(max_length=20, blank=True, null=True)
     otp = models.CharField(max_length=6, blank=True, null=True)
     is_verified = models.BooleanField(default=False)  # Add this field
     is_active = models.BooleanField(default=True)

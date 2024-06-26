@@ -8,7 +8,7 @@ SECRET_KEY = 'django-insecure-i^y^u)#&0$yme3s6)i=c2n7cdm7cd+qt29wvrzg0c&=m@z3ph0
 
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 INSTALLED_APPS = [
     "daphne",
@@ -96,7 +96,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Asia/Kolkata'
 
 USE_I18N = True
 
