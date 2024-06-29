@@ -1,5 +1,6 @@
 from pathlib import Path
 from datetime import timedelta
+import pymongo
 import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -9,6 +10,11 @@ SECRET_KEY = 'django-insecure-i^y^u)#&0$yme3s6)i=c2n7cdm7cd+qt29wvrzg0c&=m@z3ph0
 DEBUG = True
 
 ALLOWED_HOSTS = ['*']
+
+CONNECTION_STRING="mongodb+srv://nisha:testing%401234@letitbloom.ssvifga.mongodb.net/WireBrain?retryWrites=true&w=majority&appName=letitbloom"
+MONGO_CLIENT = pymongo.MongoClient(CONNECTION_STRING)
+MONGO_DB_NAME = 'WireBrain'
+MONGO_DB = MONGO_CLIENT[MONGO_DB_NAME]
 
 INSTALLED_APPS = [
     "daphne",

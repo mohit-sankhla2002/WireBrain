@@ -3,10 +3,16 @@ from django.db import IntegrityError
 from . import models
 import openpyxl
 
-class indPhoneSerializer(serializers.ModelSerializer):
+class contactSerializer(serializers.ModelSerializer):
     class Meta:
-        model = models.phoneDetails
-        fields = ['full_name', 'phone']
+        model = models.Contact
+        fields = ['full_name','email','phone']
+
+    def create(self, validated_data):
+        user = self.context.get('user')
+        if not user:
+            raise serializers.ValidationError("User context is required")
+        return models.Contact.objects.create(user=user, **validated_data)
 
 class excelSerializer(serializers.Serializer):
     csv_file = serializers.FileField()
@@ -32,3 +38,20 @@ class excelSerializer(serializers.Serializer):
         except IntegrityError as e:
             raise serializers.ValidationError({'mobile_number':"Duplicate Mobile Number Found"}) 
         return user_data_list
+    
+
+from rest_framework import serializers
+
+class PhoneSerializer(serializers.Serializer):
+    phone = serializers.CharField(max_length=15)
+
+class MessageSerializer(PhoneSerializer):
+    message = serializers.CharField()
+
+class MediaSerializer(PhoneSerializer):
+    media = serializers.FileField()
+
+    def validate_media(self, value):
+        if value.size > 5 * 1024 * 1024:
+            raise serializers.ValidationError("Media file size must be less than or equal to 5 MB.")
+        return value
