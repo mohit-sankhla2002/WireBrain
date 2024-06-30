@@ -19,6 +19,22 @@ collection = db['wchatApp']
 
 messenger = WhatsApp(token=AUTH_TOKEN, phone_number_id=PHONE_ID)
 
+def sendMedia(media, phone, mediaType, query):
+    with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(media.name)[1]) as temp_file:
+        for chunk in media.chunks():
+            temp_file.write(chunk)
+        media_id = messenger.upload_media(
+            media=temp_file.name
+        )['id']
+        kwargs = {
+            mediaType: media_id,
+            'recipient_id': phone,
+            'link': False
+        }
+        response = getattr(messenger,query)(**kwargs)
+        output = {'response': response, 'media_id': media_id}
+        return output
+
 class contactView(APIView):
     renderer_classes = [renderers.MessageRenderers]
     permission_classes = [IsAuthenticated]
@@ -56,11 +72,8 @@ class sendText(APIView):
             mobile = request.data['phone']
             message = request.data['message']
             response = messenger.send_message(message=message, recipient_id=mobile)
-            response['messages'][0]['text'] = {
-                'body': message
-            }
             message_id = response['messages'][0]['id']
-            messenger.set_message(message_id, message)
+            messenger.set_message(message_id=message_id, message_content=message, message_type='text')
             
             return Response({'msg': response}, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -71,19 +84,10 @@ class sendImage(APIView):
         if serializer.is_valid():
             media = request.FILES['media']
             phone = request.data['phone']
-            with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(media.name)[1]) as temp_file:
-                for chunk in media.chunks():
-                    temp_file.write(chunk)
-
-            media_id = messenger.upload_media(
-                media=temp_file.name
-            )['id']
-            response = messenger.send_image(
-            image=media_id,
-            recipient_id=phone,
-            link=False
-        )
-            print(response)
+            output = sendMedia(media=media, phone=phone, mediaType='image', query= 'send_image')
+            response=output['response']
+            message_id = response['messages'][0]['id']
+            messenger.set_message(message_id=message_id, message_type='image', message_content=output['media_id'])
             return Response({'msg': response}, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -93,19 +97,11 @@ class sendVideo(APIView):
         if serializer.is_valid():
             media = request.FILES['media']
             phone = request.data['phone']
-            with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(media.name)[1]) as temp_file:
-                for chunk in media.chunks():
-                    temp_file.write(chunk)
-
-            media_id = messenger.upload_media(
-                media=temp_file.name
-            )['id']
-            response = messenger.send_video(
-            video=media_id,
-            recipient_id=phone,
-            link=False
-        )
-            print(response)
+            output = sendMedia(media=media, phone= phone, mediaType='video', query='send_video')
+            response=output['response']
+            message_id = response['messages'][0]['id']
+            messenger.set_message(message_id=message_id, message_type='video', message_content=output['media_id'])
+            print("Message store is: ",messenger.messages_store)
             return Response({'msg': response}, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -115,19 +111,11 @@ class sendPdf(APIView):
         if serializer.is_valid():
             media = request.FILES['media']
             phone = request.data['phone']
-            with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(media.name)[1]) as temp_file:
-                for chunk in media.chunks():
-                    temp_file.write(chunk)
-
-            media_id = messenger.upload_media(
-                media=temp_file.name
-            )['id']
-            response = messenger.send_document(
-            document=media_id,
-            recipient_id=phone,
-            link=False
-        )
-            print(response)
+            output = sendMedia(media=media, phone= phone, mediaType='document', query="send_document")
+            response = output['response']
+            message_id = response['messages'][0]['id']
+            messenger.set_message(message_id=message_id, message_type='document', message_content=output['media_id'])
+            print(messenger.messages_store)
             return Response({'msg': response}, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -137,19 +125,10 @@ class sendAudio(APIView):
         if serializer.is_valid():
             media = request.FILES['media']
             phone = request.data['phone']
-            with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(media.name)[1]) as temp_file:
-                for chunk in media.chunks():
-                    temp_file.write(chunk)
-
-            media_id = messenger.upload_media(
-                media=temp_file.name
-            )['id']
-            response = messenger.send_audio(
-            audio=media_id,
-            recipient_id=phone,
-            link=False
-        )
-            print(response)
+            output = sendMedia(media=media, phone= phone, mediaType='audio', query="send_audio")
+            response = output['response']
+            message_id = response['messages'][0]['id']
+            messenger.set_message(message_id=message_id, message_type='audio', message_content=output['media_id'])
             return Response({'msg': response}, status=status.HTTP_200_OK)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -167,6 +146,33 @@ class sendLocation(APIView):
         return Response({'msg': response}, status=status.HTTP_200_OK)
         
 class WebhookView(APIView):
+    def saveMessage(self, messageId, data, report):
+        query = {"entry.changes.value.messages.id": messageId}
+        document = models.chats.find_one(query)
+        if document:
+            models.chats.update_one(
+            query,
+            {"$push": {"entry.$[].changes.$[].value.status_log":report}}
+            )
+        else:
+            data['entry'][0]['changes'][0]['value']['status_log'] = [report]
+            models.chats.insert_one(data)
+    
+    def setMedia(self, contentId, timestamp, heading, mediaType, mediaId):
+        new_messages = {
+            'messages': [
+            {
+                'id': contentId, 
+                'timestamp': timestamp, 
+                heading: {
+                'mime_type': mediaType,  
+                'id': mediaId
+                },
+                'type': heading
+            }
+        ]}
+        return new_messages
+
     def post(self, request):
         data = json.loads(request.body.decode('utf-8'))
         changed_field = messenger.changed_field(data)
@@ -177,106 +183,97 @@ class WebhookView(APIView):
                 mobile = messenger.get_mobile(data)
                 name = messenger.get_name(data)
                 message_type = messenger.get_message_type(data)
+                models.chats.insert_one(data)
                 logging.info(
                     f"New Message; sender:{mobile} name:{name} type:{message_type}"
                 )
-                if message_type == "text":
-                    message = messenger.get_message(data)
-                    name = messenger.get_name(data)
-                    logging.info("Message: %s", message)
-                    messenger.send_message(f"Hi {name}, nice to connect with you", mobile)
 
-                elif message_type == "interactive":
-                    message_response = messenger.get_interactive_response(data)
-                    interactive_type = message_response.get("type")
-                    message_id = message_response[interactive_type]["id"]
-                    message_text = message_response[interactive_type]["title"]
-                    logging.info(f"Interactive Message; {message_id}: {message_text}")
-
-                elif message_type == "location":
-                    message_location = messenger.get_location(data)
-                    message_latitude = message_location["latitude"]
-                    message_longitude = message_location["longitude"]
-                    print(message_latitude, message_longitude, message_location)
-                    logging.info("Location: %s, %s", message_latitude, message_longitude)
-
-                elif message_type == "image":
-                    image = messenger.get_image(data)
-                    image_id, mime_type = image["id"], image["mime_type"]
-                    image_url = messenger.query_media_url(image_id)
-                    image_filename = messenger.download_media(image_url, mime_type)
-                    print(image, image_id, image_url, image_filename)
-                    print(f"{mobile} sent image {image_filename}")
-                    logging.info(f"{mobile} sent image {image_filename}")
-
-                elif message_type == "video":
-                    video = messenger.get_video(data)
-                    video_id, mime_type = video["id"], video["mime_type"]
-                    video_url = messenger.query_media_url(video_id)
-                    video_filename = messenger.download_media(video_url, mime_type)
-                    print(f"{mobile} sent video {video_filename}")
-                    logging.info(f"{mobile} sent video {video_filename}")
-
-                elif message_type == "audio":
-                    audio = messenger.get_audio(data)
-                    audio_id, mime_type = audio["id"], audio["mime_type"]
-                    audio_url = messenger.query_media_url(audio_id)
-                    audio_filename = messenger.download_media(audio_url, mime_type)
-                    print(f"{mobile} sent audio {audio_filename}")
-                    logging.info(f"{mobile} sent audio {audio_filename}")
-
-                elif message_type == "document":
-                    file = messenger.get_document(data)
-                    file_id, mime_type = file["id"], file["mime_type"]
-                    file_url = messenger.query_media_url(file_id)
-                    file_filename = messenger.download_media(file_url, mime_type)
-                    print(f"{mobile} sent file {file_filename}")
-                    logging.info(f"{mobile} sent file {file_filename}")
-                else:
-                    print(f"{mobile} sent {message_type} ")
-                    print(data)
-                    
-            else:
-                delivery = messenger.get_delivery(data)
-                if delivery:
-                    print(f"Message : {delivery}")
-                else:
-                    print("No new message")
-    
         if 'statuses' in data['entry'][0]['changes'][0]['value']:
             messageId = data['entry'][0]['changes'][0]['value']['statuses'][0]['id']
             record = messenger.get_delivery(data)
             timestamp = data['entry'][0]['changes'][0]['value']['statuses'][0]['timestamp']
-            if messageId in messenger.messages_store:
-                        content = messenger.messages_store[messageId]
+            if messageId in messenger.messages_store and messenger.messages_store[messageId]['message_type']=='text':
+                        content = messenger.messages_store[messageId]['message_content']
                         new_messages = {
-                            'messages': [
-                                {
+                            'messages': [{
                                  'id': messageId, 
                                  'timestamp': timestamp, 
                                  'text': {'body': content}, 
                                  'type': 'text'
-                                 }
-                                 ]}
+                                 }]}
                         report = {record:timestamp}
-                        level = []
-                        level.append(report)
                         data['entry'][0]['changes'][0]['value'].update(new_messages)
-                        data['entry'][0]['changes'][0]['value']['level'] = level
-                        query = {"entry.changes.value.messages.id": messageId}
-                        document = models.chats.find_one(query)
-                        if document:
-                            models.chats.update_one(
-                                query,
-                                {"$push": {"entry.$[].changes.$[].value.level":level}}
-                            )
-                        else:
-                            models.chats.insert_one(data)
-                        print("sender delievery status", messenger.get_delivery(data))
-                        success = {
-                            messenger.get_delivery(data): timestamp
-                        }
-                        print(success)
+                        self.saveMessage(messageId=messageId, data=data, report=report)
+
+            elif messageId in messenger.messages_store and messenger.messages_store[messageId]['message_type']=='image':
+                imageId = messenger.messages_store[messageId]['message_content']
+                report = {record:timestamp}
+                new_messages = self.setMedia(contentId=messageId, timestamp=timestamp, heading='image', mediaType='image/jpeg', mediaId=imageId)
+                data['entry'][0]['changes'][0]['value'].update(new_messages)
+                self.saveMessage(messageId=messageId, data=data, report=report)
+            
+            elif messageId in messenger.messages_store and messenger.messages_store[messageId]['message_type']=='video':
+                videoId = messenger.messages_store[messageId]['message_content']
+                report = {record:timestamp}
+                new_messages = self.setMedia(contentId=messageId, timestamp=timestamp, heading='video', mediaType='video/mp4', mediaId=videoId)
+                data['entry'][0]['changes'][0]['value'].update(new_messages)
+                self.saveMessage(messageId=messageId, data=data, report=report)
+            
+            elif messageId in messenger.messages_store and messenger.messages_store[messageId]['message_type']=='audio':
+                audioId = messenger.messages_store[messageId]['message_content']
+                report = {record:timestamp}
+                new_messages = self.setMedia(contentId=messageId, timestamp=timestamp, heading='document', mediaType='audio/mpeg', mediaId=audioId)
+                data['entry'][0]['changes'][0]['value'].update(new_messages)
+                self.saveMessage(messageId=messageId, data=data, report=report)
+            
+            elif messageId in messenger.messages_store and messenger.messages_store[messageId]['message_type']=='document':
+                documentId = messenger.messages_store[messageId]['message_content']
+                report = {record:timestamp}
+                new_messages = self.setMedia(contentId=messageId, timestamp=timestamp, heading='document', mediaType='application/pdf', mediaId=documentId)
+                print(new_messages)
+                data['entry'][0]['changes'][0]['value'].update(new_messages)
+                self.saveMessage(messageId=messageId, data=data, report=report)
 
         response_message = 'Message received and stored successfully.'
         return Response({'status': 'success', 'message': response_message}, status=status.HTTP_201_CREATED)
+    
+class get_all_chats(APIView):
+    def post(self, request, format=None):
+        sender_id = request.data['sender']
+        receiver_id = request.data['receiver']
+        messages = models.chats.find()
+        chat_history = []
+        for message in messages:
+            value = message['entry'][0]['changes'][0]['value']
+            msgEndpoint = message['entry'][0]['changes'][0]['value']['messages'][0]
+            mediaId=""
+            textBody=""
+            if 'text' in msgEndpoint: textBody = msgEndpoint['text']['body']
+            elif 'image' in msgEndpoint:mediaId = msgEndpoint['image']['id']
+            elif 'video' in msgEndpoint:mediaId = msgEndpoint['video']['id']
+            elif 'document' in msgEndpoint:mediaId = msgEndpoint['document']['id']
+            elif 'audio' in msgEndpoint:mediaId = msgEndpoint['audio']['id']
+            messageType = msgEndpoint['type']
+            content = textBody if textBody else messenger.query_media_url(mediaId)
+            if 'statuses' in value and value['statuses'][0]['recipient_id'] == sender_id:
+                statusLog = value['status_log']
+                msg_entry = {
+                                "from": receiver_id,
+                                "to": sender_id,
+                                "type": messageType,
+                                "body": content,
+                                "status": statusLog
+                            }
+    
+            elif value['contacts'][0]['wa_id'] == sender_id and value['metadata']['phone_number_id'] == receiver_id:
+                timestamp = msgEndpoint['timestamp']
+                msg_entry = {
+                                "from": sender_id,
+                                "to": receiver_id,
+                                "type": messageType,
+                                "body": content,
+                                "status": timestamp
+                            }
+            chat_history.append(msg_entry)
+        print(chat_history)
+        return Response({'msg': "success"}, status=status.HTTP_200_OK)
