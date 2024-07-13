@@ -25,18 +25,17 @@ class MyUserManager(BaseUserManager):
         user.save(using=self._db)
         return user
 
-    def create_superuser(self, email, first_name, last_name, phone, team_name, team_type, username,password=None, password2=None):
+    def create_superuser(self, email, first_name, last_name, phone, username,password, password2, profile_photo):
         user = self.create_user(
             email,
             password=password,
             first_name=first_name,
             last_name=last_name,
             username=username,
+            profile_photo=profile_photo,
             phone=phone
         )
         user.is_admin = True
-        team = modelTeam.Team.objects.create(team_name=team_name, team_type=team_type)
-        user.team = team
         user.save(using=self._db)
         return user
 

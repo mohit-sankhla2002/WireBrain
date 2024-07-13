@@ -1,4 +1,5 @@
 from rest_framework.permissions import IsAuthenticated
+from .utils import get_whatsapp_credentials
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -17,7 +18,27 @@ PHONE_ID = "275772712289918"
 db = settings.MONGO_DB
 collection = db['wchatApp']
 
+class someFunction(APIView):
+    def post(self, request):
+        team_id = request.data['teamId']
+        credentials = get_whatsapp_credentials(team_id)
+        print(credentials)
+        return Response({'msg': "Credentials Obtained"}, status=status.HTTP_202_ACCEPTED)
+        # messenger = WhatsApp(token=credentials['auth_token'], phone_number_id=credentials['phone_number_id'])
+
+
 messenger = WhatsApp(token=AUTH_TOKEN, phone_number_id=PHONE_ID)
+
+class getTemplates(APIView):
+    permission_classes = [IsAuthenticated]
+    def post(self, request):
+        serializer = serializers.getTemplatesSerializer(context={'user': request.user})
+        try:
+            message_templates = serializer.get_message_templates()
+            return Response({'templates': message_templates}, status=status.HTTP_200_OK)
+        except serializers.ValidationError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        
 
 def sendMedia(media, phone, mediaType, query):
     with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(media.name)[1]) as temp_file:

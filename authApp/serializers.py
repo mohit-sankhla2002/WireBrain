@@ -36,6 +36,25 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         utils.Util.send_mail(data)
 
         return user
+    
+class AdminRegistrationSerializer(serializers.ModelSerializer):
+    password2 = serializers.CharField(style={'input_type':'password'}, write_only=True)
+    class Meta:
+        model = models.User
+        fields = ['first_name', 'last_name', 'email', 'username', 'phone', 'password', 'password2', 'profile_photo']
+        extra_kwargs = {
+            'password': {'write_only': True}
+        }
+
+    def validate(self, attrs):
+        password = attrs.get('password')
+        password2 = attrs.get('password2')
+        if password != password2:
+            raise serializers.ValidationError("Password and Confirm Password not matches...")
+        return attrs
+
+    def create(self, validate_data):
+        return models.User.objects.create_superuser(**validate_data, )
         
 class VerifyOTPSerializer(serializers.Serializer):
     email = serializers.EmailField()

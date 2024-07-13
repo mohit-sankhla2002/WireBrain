@@ -1,7 +1,10 @@
 from rest_framework import serializers
+from rest_framework.serializers import ValidationError
 from django.db import IntegrityError
+from .utils import get_whatsapp_credentials
 from . import models
 import openpyxl
+import requests
 
 class contactSerializer(serializers.ModelSerializer):
     class Meta:
@@ -13,6 +16,29 @@ class contactSerializer(serializers.ModelSerializer):
         if not user:
             raise serializers.ValidationError("User context is required")
         return models.Contact.objects.create(user=user, **validated_data)
+    
+
+class getTemplatesSerializer(serializers.Serializer):
+    wbId = serializers.CharField()
+    authToken = serializers.CharField()
+
+    def get_message_templates(self):
+        user = self.context.get('user')
+        teamId = user.team.id
+        credentials = get_whatsapp_credentials(teamId)
+        wbId = credentials['whatsapp_business_id']
+        authToken = credentials['auth_token']
+        url = f"https://graph.facebook.com/v20.0/{wbId}/message_templates?category=utility"
+        headers = {
+        'Authorization': f'Bearer {authToken}'
+        }
+        try:
+            response = requests.get(url, headers=headers)
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.RequestException as e:
+            raise ValidationError(str(e))
+
 
 class excelSerializer(serializers.Serializer):
     csv_file = serializers.FileField()

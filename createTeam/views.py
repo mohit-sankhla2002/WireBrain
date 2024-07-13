@@ -53,3 +53,4 @@ class TeamMembers(APIView):
         members = models.User.objects.filter(team_id=team_id)
         serializer = serializers.TeamMembersSerializers(members, many=True)
         return Response({'members': serializer.data}, status=status.HTTP_200_OK)
+    

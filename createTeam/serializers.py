@@ -8,7 +8,7 @@ from django.contrib.auth.tokens import PasswordResetTokenGenerator
 class TeamRegistrationSerialzer(serializers.ModelSerializer):
     class Meta:
         model = models.Team
-        fields = ['team_name', 'team_type']
+        fields = ['team_name', 'team_type', 'accessToken']
 
     def validate_team_type(self, value):
         valid_types = ['Tier-1', 'Tier-2', 'Tier-3']  # Example valid types
@@ -19,6 +19,9 @@ class TeamRegistrationSerialzer(serializers.ModelSerializer):
     def create(self, validate_data):
         team = models.Team.objects.create(**validate_data, )
         user = self.context.get('user')
+        userId = user.id
+        team.team_leader = userId
+        team.save()
         user.team = team
         user.save()
         return team
