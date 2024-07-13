@@ -55,3 +55,5 @@ class MediaSerializer(PhoneSerializer):
         if value.size > 5 * 1024 * 1024:
             raise serializers.ValidationError("Media file size must be less than or equal to 5 MB.")
         return value
+    
+

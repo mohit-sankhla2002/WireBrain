@@ -237,6 +237,47 @@ class WebhookView(APIView):
         response_message = 'Message received and stored successfully.'
         return Response({'status': 'success', 'message': response_message}, status=status.HTTP_201_CREATED)
     
+
+class get_chat_by_id(APIView):
+    def get(self, request, format=None): 
+        phone = request.query_params.get('phone')
+        messages = models.chats.find()
+        chat_history = []
+        for message in messages:
+            value = message['entry'][0]['changes'][0]['value']
+            msgEndpoint = message['entry'][0]['changes'][0]['value']['messages'][0]
+            mediaId=""
+            textBody=""
+            if 'text' in msgEndpoint: textBody = msgEndpoint['text']['body']
+            elif 'image' in msgEndpoint:mediaId = msgEndpoint['image']['id']
+            elif 'video' in msgEndpoint:mediaId = msgEndpoint['video']['id']
+            elif 'document' in msgEndpoint:mediaId = msgEndpoint['document']['id']
+            elif 'audio' in msgEndpoint:mediaId = msgEndpoint['audio']['id']
+            messageType = msgEndpoint['type']
+            content = textBody if textBody else messenger.query_media_url(mediaId)
+            if 'statuses' in value and value['statuses'][0]['recipient_id'] == phone:
+                statusLog = value['status_log']
+                msg_entry = {
+                                "from": phone,
+                                "to": value['metadata']['phone_number_id'],
+                                "type": messageType,
+                                "body": content,
+                                "status": statusLog
+                            }
+    
+            elif value['contacts'][0]['wa_id'] == phone and value['metadata']['phone_number_id'] == phone:
+                timestamp = msgEndpoint['timestamp']
+                msg_entry = {
+                                "from": value['metadata']['phone_number_id'],
+                                "to": phone,
+                                "type": messageType,
+                                "body": content,
+                                "status": timestamp
+                            }
+            chat_history.append(msg_entry)
+        print(chat_history)
+        return Response({'msg': "success"}, status=status.HTTP_200_OK)
+    
 class get_all_chats(APIView):
     def post(self, request, format=None):
         sender_id = request.data['sender']
@@ -277,3 +318,17 @@ class get_all_chats(APIView):
             chat_history.append(msg_entry)
         print(chat_history)
         return Response({'msg': "success"}, status=status.HTTP_200_OK)
+    
+
+class get_contacts_by_id(APIView): 
+    permission_classes = [IsAuthenticated]
+    def get(self, request, format=None):
+        contacts = models.Contact.objects.filter(user=request.user.id)
+
+        if (len(contacts) == 0):
+            return Response({'msg': 'No contacts found with given user id'}, status=status.HTTP_404_NOT_FOUND)
+
+        print(contacts)
+        return Response({'contacts': list(contacts.values())}, status=status.HTTP_200_OK)
+        
+
