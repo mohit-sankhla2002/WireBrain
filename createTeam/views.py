@@ -42,3 +42,14 @@ class ChatUsers(APIView):
         members = models.User.objects.filter(team_id=team_id)
         serializer = serializers.ChatUsersSerializers(members, many=True)
         return Response({'users': serializer.data}, status=status.HTTP_200_OK)
+    
+
+class TeamMembers(APIView):
+    renderer_classes=[renderers.UserRenderers]
+    permission_classes = [IsAuthenticated]
+    def get(self, request, format=None):
+        user = request.user
+        team_id = user.team.id
+        members = models.User.objects.filter(team_id=team_id)
+        serializer = serializers.TeamMembersSerializers(members, many=True)
+        return Response({'members': serializer.data}, status=status.HTTP_200_OK)

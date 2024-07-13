@@ -13,4 +13,6 @@ urlpatterns = [
     path('data-send', views.WebhookView.as_view()),
     path('excelfile', views.csvPhone.as_view()),
     path('get-chats', views.get_all_chats.as_view()),
+    path('get-chat-by-id', views.get_chat_by_id.as_view()),
+    path('get-contacts-by-id', views.get_contacts_by_id.as_view()),
 ]
