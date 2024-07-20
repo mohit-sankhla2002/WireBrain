@@ -1,6 +1,5 @@
 import requests
 from django.core.cache import cache
-from django.conf import settings
 from createTeam.models import Team
 
 def get_whatsapp_credentials(team_id):

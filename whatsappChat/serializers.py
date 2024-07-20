@@ -6,6 +6,16 @@ from . import models
 import openpyxl
 import requests
 
+class credentialSerializer(serializers.Serializer):
+    def get_credentials(self):
+        user = self.context.get('user')
+        teamId = user.team.id
+        try:
+            return get_whatsapp_credentials(teamId)
+        except KeyError:
+            raise ValidationError("Invalid Access Token....")
+
+
 class contactSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Contact

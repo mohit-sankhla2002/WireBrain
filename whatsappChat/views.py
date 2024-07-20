@@ -19,13 +19,15 @@ db = settings.MONGO_DB
 collection = db['wchatApp']
 
 class someFunction(APIView):
+    permission_classes = [IsAuthenticated]
     def post(self, request):
-        team_id = request.data['teamId']
-        credentials = get_whatsapp_credentials(team_id)
-        print(credentials)
-        return Response({'msg': "Credentials Obtained"}, status=status.HTTP_202_ACCEPTED)
-        # messenger = WhatsApp(token=credentials['auth_token'], phone_number_id=credentials['phone_number_id'])
-
+        serializer=serializers.credentialSerializer(context={'user':request.user})
+        try:
+            credentials=serializer.get_credentials()
+            messenger = WhatsApp(token=credentials['auth_token'], phone_number_id=credentials['phone_number_id'])
+            return Response({'msg': "Credentials Obtained"}, status=status.HTTP_202_ACCEPTED)
+        except serializers.ValidationError as e:
+            return Response({'error': "Invalid Access Token"}, status=status.HTTP_400_BAD_REQUEST)
 
 messenger = WhatsApp(token=AUTH_TOKEN, phone_number_id=PHONE_ID)
 
@@ -196,6 +198,7 @@ class WebhookView(APIView):
 
     def post(self, request):
         data = json.loads(request.body.decode('utf-8'))
+        print(data)
         changed_field = messenger.changed_field(data)
 
         if changed_field == "messages":
@@ -338,7 +341,7 @@ class get_all_chats(APIView):
                             }
             chat_history.append(msg_entry)
         print(chat_history)
-        return Response({'msg': "success"}, status=status.HTTP_200_OK)
+        return Response({'msg': chat_history}, status=status.HTTP_200_OK)
     
 
 class get_contacts_by_id(APIView): 
