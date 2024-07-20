@@ -49,7 +49,7 @@ class User(AbstractBaseUser):
     profile_photo = models.ImageField(upload_to='profile_photos/', null=True, blank=True, default='profile_photos/avatar.svg')
     first_name = models.CharField(max_length=50)
     last_name = models.CharField(max_length=50)
-    phone = models.CharField(max_length=10, unique=True)
+    phone = models.CharField(max_length=15, unique=True)
     username = models.CharField(max_length=20, unique=True)
     phone_id = models.CharField(max_length=20, blank=True, null=True)
     otp = models.CharField(max_length=6, blank=True, null=True)

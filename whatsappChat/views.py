@@ -1,5 +1,4 @@
 from rest_framework.permissions import IsAuthenticated
-from .utils import get_whatsapp_credentials
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -8,15 +7,13 @@ from heyoo import WhatsApp
 from . import serializers
 from . import models
 from . import renderers
-import logging
+from . import webhook
 import tempfile
 import os
 import json
 
 AUTH_TOKEN = "EAAL7og371v4BOzH3qCP6o1o2WdIfdwZBU0M2Oy9xhqSK9IwJ1jQJjs1P69z3Kq9dchPdpuGc0MpL4Wna2XMxHFXivD4qPfDS1zZA7H7SY60H8IzmGh4wTFQ4H4Uz5SZAlCmYDiLZCRK3vDaRrUomNpiKFH6KfD2qTcnAceRRIZCFiUz3GOgVZBoMHl0ZAOXvz7mgAZDZD"
 PHONE_ID = "275772712289918"
-db = settings.MONGO_DB
-collection = db['wchatApp']
 
 class someFunction(APIView):
     permission_classes = [IsAuthenticated]
@@ -169,95 +166,13 @@ class sendLocation(APIView):
         return Response({'msg': response}, status=status.HTTP_200_OK)
         
 class WebhookView(APIView):
-    def saveMessage(self, messageId, data, report):
-        query = {"entry.changes.value.messages.id": messageId}
-        document = models.chats.find_one(query)
-        if document:
-            models.chats.update_one(
-            query,
-            {"$push": {"entry.$[].changes.$[].value.status_log":report}}
-            )
-        else:
-            data['entry'][0]['changes'][0]['value']['status_log'] = [report]
-            models.chats.insert_one(data)
-    
-    def setMedia(self, contentId, timestamp, heading, mediaType, mediaId):
-        new_messages = {
-            'messages': [
-            {
-                'id': contentId, 
-                'timestamp': timestamp, 
-                heading: {
-                'mime_type': mediaType,  
-                'id': mediaId
-                },
-                'type': heading
-            }
-        ]}
-        return new_messages
-
     def post(self, request):
         data = json.loads(request.body.decode('utf-8'))
-        print(data)
-        changed_field = messenger.changed_field(data)
-
-        if changed_field == "messages":
-            new_message = messenger.get_mobile(data)
-            if new_message:
-                mobile = messenger.get_mobile(data)
-                name = messenger.get_name(data)
-                message_type = messenger.get_message_type(data)
-                models.chats.insert_one(data)
-                logging.info(
-                    f"New Message; sender:{mobile} name:{name} type:{message_type}"
-                )
-
+        webhookCall = webhook.Webhook(data=data, messenger=messenger)
         if 'statuses' in data['entry'][0]['changes'][0]['value']:
-            messageId = data['entry'][0]['changes'][0]['value']['statuses'][0]['id']
-            record = messenger.get_delivery(data)
-            timestamp = data['entry'][0]['changes'][0]['value']['statuses'][0]['timestamp']
-            if messageId in messenger.messages_store and messenger.messages_store[messageId]['message_type']=='text':
-                        content = messenger.messages_store[messageId]['message_content']
-                        new_messages = {
-                            'messages': [{
-                                 'id': messageId, 
-                                 'timestamp': timestamp, 
-                                 'text': {'body': content}, 
-                                 'type': 'text'
-                                 }]}
-                        report = {record:timestamp}
-                        data['entry'][0]['changes'][0]['value'].update(new_messages)
-                        self.saveMessage(messageId=messageId, data=data, report=report)
-
-            elif messageId in messenger.messages_store and messenger.messages_store[messageId]['message_type']=='image':
-                imageId = messenger.messages_store[messageId]['message_content']
-                report = {record:timestamp}
-                new_messages = self.setMedia(contentId=messageId, timestamp=timestamp, heading='image', mediaType='image/jpeg', mediaId=imageId)
-                data['entry'][0]['changes'][0]['value'].update(new_messages)
-                self.saveMessage(messageId=messageId, data=data, report=report)
-            
-            elif messageId in messenger.messages_store and messenger.messages_store[messageId]['message_type']=='video':
-                videoId = messenger.messages_store[messageId]['message_content']
-                report = {record:timestamp}
-                new_messages = self.setMedia(contentId=messageId, timestamp=timestamp, heading='video', mediaType='video/mp4', mediaId=videoId)
-                data['entry'][0]['changes'][0]['value'].update(new_messages)
-                self.saveMessage(messageId=messageId, data=data, report=report)
-            
-            elif messageId in messenger.messages_store and messenger.messages_store[messageId]['message_type']=='audio':
-                audioId = messenger.messages_store[messageId]['message_content']
-                report = {record:timestamp}
-                new_messages = self.setMedia(contentId=messageId, timestamp=timestamp, heading='document', mediaType='audio/mpeg', mediaId=audioId)
-                data['entry'][0]['changes'][0]['value'].update(new_messages)
-                self.saveMessage(messageId=messageId, data=data, report=report)
-            
-            elif messageId in messenger.messages_store and messenger.messages_store[messageId]['message_type']=='document':
-                documentId = messenger.messages_store[messageId]['message_content']
-                report = {record:timestamp}
-                new_messages = self.setMedia(contentId=messageId, timestamp=timestamp, heading='document', mediaType='application/pdf', mediaId=documentId)
-                print(new_messages)
-                data['entry'][0]['changes'][0]['value'].update(new_messages)
-                self.saveMessage(messageId=messageId, data=data, report=report)
-
+            webhookCall.sendMessage()
+        else:
+            webhookCall.receiveMessage()
         response_message = 'Message received and stored successfully.'
         return Response({'status': 'success', 'message': response_message}, status=status.HTTP_201_CREATED)
     
@@ -301,6 +216,19 @@ class get_chat_by_id(APIView):
             chat_history.append(msg_entry)
         print(chat_history)
         return Response({'msg': "success"}, status=status.HTTP_200_OK)
+    
+class getTeamChats(APIView):
+    permission_classes = [IsAuthenticated]
+    def post(self, request, format=None):
+        user=request.user
+        try:
+            records = models.chats.find({'teamId': user.team.id}, {'_id': 1, 'recipientId': 1, 'universalTimestamp': 1})
+            records = list(records)
+            for record in records:
+                record['_id'] = str(record['_id'])
+            return Response({'records': records}, status=status.HTTP_200_OK)
+        except:
+            return Response({"error": "Unauthorized User"}, status=status.HTTP_401_UNAUTHORIZED)
     
 class get_all_chats(APIView):
     def post(self, request, format=None):

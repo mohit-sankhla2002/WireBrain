@@ -13,8 +13,7 @@ class credentialSerializer(serializers.Serializer):
         try:
             return get_whatsapp_credentials(teamId)
         except KeyError:
-            raise ValidationError("Invalid Access Token....")
-
+            raise ValidationError("Invalid Access Token....")   
 
 class contactSerializer(serializers.ModelSerializer):
     class Meta:
@@ -26,7 +25,6 @@ class contactSerializer(serializers.ModelSerializer):
         if not user:
             raise serializers.ValidationError("User context is required")
         return models.Contact.objects.create(user=user, **validated_data)
-    
 
 class getTemplatesSerializer(serializers.Serializer):
     wbId = serializers.CharField()
@@ -48,7 +46,6 @@ class getTemplatesSerializer(serializers.Serializer):
             return response.json()
         except requests.exceptions.RequestException as e:
             raise ValidationError(str(e))
-
 
 class excelSerializer(serializers.Serializer):
     csv_file = serializers.FileField()
@@ -74,9 +71,6 @@ class excelSerializer(serializers.Serializer):
         except IntegrityError as e:
             raise serializers.ValidationError({'mobile_number':"Duplicate Mobile Number Found"}) 
         return user_data_list
-    
-
-from rest_framework import serializers
 
 class PhoneSerializer(serializers.Serializer):
     phone = serializers.CharField(max_length=15)
@@ -91,5 +85,3 @@ class MediaSerializer(PhoneSerializer):
         if value.size > 5 * 1024 * 1024:
             raise serializers.ValidationError("Media file size must be less than or equal to 5 MB.")
         return value
-    
-
