@@ -222,10 +222,13 @@ class getTeamChats(APIView):
     def post(self, request, format=None):
         user=request.user
         try:
-            records = models.chats.find({'teamId': user.team.id}, {'_id': 1, 'recipientId': 1, 'universalTimestamp': 1})
+            records = models.chats.find({'teamId': user.team.id}, {'_id': 1, 'recipientId': 1, 'universalTimestamp': 1, 'chats': {
+                '$slice': -1
+            }})
             records = list(records)
             for record in records:
                 record['_id'] = str(record['_id'])
+                record['chats'] = record['chats'][0]
             return Response({'records': records}, status=status.HTTP_200_OK)
         except:
             return Response({"error": "Unauthorized User"}, status=status.HTTP_401_UNAUTHORIZED)
