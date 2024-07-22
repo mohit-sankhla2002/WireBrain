@@ -73,7 +73,7 @@ class Webhook:
             user = authModel.User.objects.get(phone=self.teamMobile)
             timestamp=messenger.get_message_timestamp(data)
             if mobile:
-                contact=models.chats.find_one({'teamId':user.team.id,'contactId': mobile})
+                contact=models.chats.find_one({'teamId':user.team.id,'contactId': self.teamMobile, 'recipientId':mobile})
 
                 if not contact:
                     contact_data = {'contactId': self.teamMobile,'recipientId': mobile,'teamId': user.team.id, "universalTimestamp":timestamp,'chats': []}
